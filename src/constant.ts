@@ -1,0 +1,22 @@
+export const MAP_SIZE = 50;
+export const MAX_HEIGHT = 10;
+export const BLOCK_WIDTH = 1;
+export const BLOCK_HEIGHT = 0.6;
+export const BLOCK_DEPTH = 1;
+
+export const PLAYER_SPEED = 5;
+export const GRAVITY = -20;
+export const JUMP_FORCE = 6;
+
+export const displayBorder = true;
+
+export const AIR = -1;
+export const COBBLESTONE = 0;
+export const DIRT = 1;
+export const GRASS = 2;
+export const WATER = 3; // New
+export const BOOST = 4; // New
+
+export const SEA_LEVEL = 3;
+
+export const CLIMB_BOOST = 5.5;
