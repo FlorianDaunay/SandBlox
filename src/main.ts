@@ -8,7 +8,6 @@ function getRandomBetween(min: number, max: number): number {
   return Math.floor(Math.random() * (max - min) + min); // Random number in [min, max)
 }
 
-// --- GAME CONFIGURATION ---
 
 
 const mapData: number[][][] = Array.from({ length: MAP_SIZE }, () =>
