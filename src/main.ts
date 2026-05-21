@@ -143,87 +143,52 @@ const keys: { [key: string]: boolean } = {};
 window.addEventListener('keydown', (e) => keys[e.code] = true);
 window.addEventListener('keyup', (e) => keys[e.code] = false);
 
-// --- 6. SOCKET LISTENERS ---
-socket.on('initWorld', (data: { mapData: number[][][]; currentPlayers: Record<string, any> }) => {
-  mapData = data.mapData;
-  buildWorldFromData(mapData);
+const clientPlayers: Record<string, Player> = {}; // Local player instances with meshes
 
-  // Spawn existing remote players using the Player class
-  for (const id in data.currentPlayers) {
-    if (id !== socket.id) {
-      const rPlayer = new Player(id, data.currentPlayers[id].x, data.currentPlayers[id].y, data.currentPlayers[id].z);
-      // Optional: Give remote players a distinct look so you know who is who
-      if (rPlayer.mesh.material instanceof THREE.MeshStandardMaterial) {
-        rPlayer.mesh.material.color.setHex(0x33cc33);
-      }
-
-      rPlayer.mesh.position.set(rPlayer.pos.x, rPlayer.pos.y + (rPlayer.height / 2), rPlayer.pos.z);
-
-      scene.add(rPlayer.mesh);
-      remotePlayers[id] = rPlayer;
-    }
-  }
+// 1. Handshake: Get all current players when joining
+socket.on('initWorld', ({ mapData: serverMap, currentPlayers }) => {
+  mapData = serverMap;
+  buildWorldFromData(mapData!);
   isInitialized = true;
-});
 
-socket.on('playerJoined', (newPlayer: Player) => {
-  if (newPlayer.id === socket.id) return;
-
-  const rPlayer = new Player(newPlayer.id, newPlayer.pos.x, newPlayer.pos.y, newPlayer.pos.z);
-  if (rPlayer.mesh.material instanceof THREE.MeshStandardMaterial) {
-    rPlayer.mesh.material.color.setHex(0x33cc33);
-  }
-
-  rPlayer.mesh.position.set(rPlayer.pos.x, rPlayer.pos.y + (rPlayer.height / 2), rPlayer.pos.z);
-
-  scene.add(rPlayer.mesh);
-  remotePlayers[newPlayer.id] = rPlayer;
-});
-
-socket.on('playerLeft', (id: string) => {
-  if (remotePlayers[id]) {
-    scene.remove(remotePlayers[id].mesh);
-    delete remotePlayers[id];
+  for (const id in currentPlayers) {
+    if (id !== socket.id && !clientPlayers[id]) {
+      const p = currentPlayers[id];
+      clientPlayers[id] = new Player(id, p.pos.x, p.pos.y, p.pos.z);
+      scene.add(clientPlayers[id].mesh);
+    }
   }
 });
 
-socket.on('stateUpdate', (serverPlayers: Record<string, any>) => {
+// 2. Someone else joins later
+socket.on('playerJoined', (p) => {
+  if (p.id !== socket.id && !clientPlayers[p.id]) {
+    clientPlayers[p.id] = new Player(p.id, p.pos.x, p.pos.y, p.pos.z);
+    scene.add(clientPlayers[p.id].mesh);
+  }
+});
+
+// 3. Keep positions in sync (The 30Hz loop)
+socket.on('stateUpdate', (serverPlayers) => {
   for (const id in serverPlayers) {
-    if (id !== socket.id && remotePlayers[id]) {
-      const rPlayer = remotePlayers[id];
+    if (id !== socket.id) {
+      const serverPlayerData = serverPlayers[id];
+      const localPlayer = clientPlayers[id];
 
-      // Update the target logical position vector
-      const serverPos = new THREE.Vector3(serverPlayers[id].x, serverPlayers[id].y, serverPlayers[id].z);
-      rPlayer.pos.lerp(serverPos, 0.3);
-
-      // Check if this remote player is inside water (for animations/swimming look)
-      const rGridX = Math.floor(rPlayer.pos.x / BLOCK_WIDTH);
-      const rGridY = Math.floor((rPlayer.pos.y + 0.1) / BLOCK_HEIGHT);
-      const rGridZ = Math.floor(rPlayer.pos.z / BLOCK_DEPTH);
-
-      let isRemoteSwimming = false;
-      if (mapData && rGridX >= 0 && rGridX < MAP_SIZE && rGridY >= 0 && rGridY < MAX_HEIGHT && rGridZ >= 0 && rGridZ < MAP_SIZE) {
-        if (mapData[rGridX][rGridY][rGridZ] === WATER) isRemoteSwimming = true;
-      }
-
-      // Apply the exact same visual translation and rotation rules used for local player
-      if (isRemoteSwimming) {
-        // Calculate heading if moving significantly
-        const movementDiff = new THREE.Vector3().subVectors(serverPos, rPlayer.pos);
-        movementDiff.y = 0;
-        if (movementDiff.lengthSq() > 0.001) {
-          const angle = Math.atan2(movementDiff.x, movementDiff.z);
-          rPlayer.mesh.rotation.set(0, angle, 0);
-          rPlayer.mesh.rotateX(Math.PI / 2);
-        } else {
-          rPlayer.mesh.rotation.set(Math.PI / 2, 0, 0);
-        }
-        rPlayer.mesh.position.set(rPlayer.pos.x, rPlayer.pos.y + (rPlayer.height * 0.1), rPlayer.pos.z);
-      } else {
-        rPlayer.mesh.rotation.set(0, 0, 0);
-        rPlayer.mesh.position.set(rPlayer.pos.x, rPlayer.pos.y + (rPlayer.height / 2), rPlayer.pos.z);
+      if (localPlayer && serverPlayerData && serverPlayerData.pos) {
+        // Read the raw JSON properties safely and update the Three.js mesh position
+        localPlayer.pos.set(serverPlayerData.pos.x, serverPlayerData.pos.y, serverPlayerData.pos.z);
+        localPlayer.mesh.position.copy(localPlayer.pos);
       }
     }
+  }
+});
+
+// 4. Clean up when someone leaves
+socket.on('playerLeft', (id) => {
+  if (clientPlayers[id]) {
+    scene.remove(clientPlayers[id].mesh); // Delete their capsule from the game world
+    delete clientPlayers[id];
   }
 });
 
@@ -372,9 +337,11 @@ function updatePhysics(dt: number) {
 
   // --- EMIT POSITION TO SERVER ---
   socket.emit('playerUpdate', {
-    x: player.pos.x,
-    y: player.pos.y,
-    z: player.pos.z
+    pos: {
+      x: player.pos.x,
+      y: player.pos.y,
+      z: player.pos.z
+    }
   });
 }
 
