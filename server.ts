@@ -84,9 +84,15 @@ io.on('connection', (socket) => {
     socket.broadcast.emit('playerJoined', players[socket.id]);
 
     // 4. Listen for structural movement updates from this specific client
-    socket.on('playerUpdate', (data: Omit<Player, 'id'>) => {
-        if (players[socket.id]) {
-            players[socket.id].pos.set(data.pos.x, data.pos.y, data.pos.z);
+    socket.on('playerUpdate', (data: any) => {
+        const player = players[socket.id];
+        if (player && data && data.pos) {
+            // Read properties safely even if it's a plain primitive object JSON structure
+            const x = typeof data.pos.x === 'number' ? data.pos.x : player.pos.x;
+            const y = typeof data.pos.y === 'number' ? data.pos.y : player.pos.y;
+            const z = typeof data.pos.z === 'number' ? data.pos.z : player.pos.z;
+
+            player.pos.set(x, y, z);
         }
     });
 
