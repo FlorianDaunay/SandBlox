@@ -15,8 +15,7 @@ const __dirname = path.dirname(__filename);
 app.use(express.static(path.join(__dirname, 'dist')));
 const httpServer = createServer(app);
 
-
-const PORT = 3000;
+const PORT = (globalThis as any).process?.env?.PORT || 3000;
 
 // Configure CORS so your frontend can connect to Render
 const io = new Server(httpServer, {
