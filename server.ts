@@ -15,7 +15,7 @@ const __dirname = path.dirname(__filename);
 app.use(express.static(path.join(__dirname, 'dist')));
 const httpServer = createServer(app);
 
-const PORT = (globalThis as any).process?.env?.PORT || 3000;
+const PORT = process.env.PORT || 3000;
 
 // Configure CORS so your frontend can connect to Render
 const io = new Server(httpServer, {
@@ -108,3 +108,13 @@ httpServer.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
 });
 
+
+
+
+process.on('uncaughtException', (err) => {
+    console.error('CRITICAL SERVER ERROR WORKED:', err.stack);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('UNHANDLED PROMISE REJECTION:', reason);
+});
