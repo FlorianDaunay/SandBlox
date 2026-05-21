@@ -1,5 +1,8 @@
-import { defineConfig } from 'vite'
+import { defineConfig } from 'vite';
 
 export default defineConfig({
-    base: '/SandBlox/',
-})
+    build: {
+        outDir: 'dist', // Ensures the output folder matches what Express is looking for
+        emptyOutDir: true,
+    },
+});
