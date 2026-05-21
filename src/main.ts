@@ -136,7 +136,7 @@ function buildWorldFromData(data: number[][][]) {
 }
 
 // --- 5. LOCAL PLAYER & INPUTS ---
-const player = new Player("", 10, 4, 10);
+const player = new Player("", 10, 4, 10, 0xff0000);
 scene.add(player.mesh);
 
 const keys: { [key: string]: boolean } = {};
@@ -154,7 +154,7 @@ socket.on('initWorld', ({ mapData: serverMap, currentPlayers }) => {
   for (const id in currentPlayers) {
     if (id !== socket.id && !clientPlayers[id]) {
       const p = currentPlayers[id];
-      clientPlayers[id] = new Player(id, p.pos.x, p.pos.y, p.pos.z);
+      clientPlayers[id] = new Player(id, p.pos.x, p.pos.y, p.pos.z, 0x0000ff);
       scene.add(clientPlayers[id].mesh);
     }
   }
@@ -163,7 +163,7 @@ socket.on('initWorld', ({ mapData: serverMap, currentPlayers }) => {
 // 2. Someone else joins later
 socket.on('playerJoined', (p) => {
   if (p.id !== socket.id && !clientPlayers[p.id]) {
-    clientPlayers[p.id] = new Player(p.id, p.pos.x, p.pos.y, p.pos.z);
+    clientPlayers[p.id] = new Player(p.id, p.pos.x, p.pos.y, p.pos.z, 0x0000ff);
     scene.add(clientPlayers[p.id].mesh);
   }
 });
@@ -177,7 +177,7 @@ socket.on('stateUpdate', (serverPlayers) => {
 
       if (localPlayer && serverPlayerData && serverPlayerData.pos) {
         // Read the raw JSON properties safely and update the Three.js mesh position
-        localPlayer.pos.set(serverPlayerData.pos.x, serverPlayerData.pos.y, serverPlayerData.pos.z);
+        localPlayer.pos.set(serverPlayerData.pos.x, serverPlayerData.pos.y + localPlayer.height / 2, serverPlayerData.pos.z);
         localPlayer.mesh.position.copy(localPlayer.pos);
       }
     }

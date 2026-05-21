@@ -15,7 +15,7 @@ export class Player {
     public mat: THREE.MeshStandardMaterial;
     public mesh: THREE.Mesh;
 
-    constructor(id: string, x: number, y: number, z: number) {
+    constructor(id: string, x: number, y: number, z: number, color: THREE.ColorRepresentation) {
         this.id = id;
         this.pos = new THREE.Vector3(x, y, z);
         this.vel = new THREE.Vector3(0, 0, 0);
@@ -25,7 +25,7 @@ export class Player {
         this.onGround = false;
 
         this.geo = new THREE.CapsuleGeometry(this.radius, this.bodyHeight, 4, 8);
-        this.mat = new THREE.MeshStandardMaterial({ color: 0xff0000 });
+        this.mat = new THREE.MeshStandardMaterial({ color: color });
         this.mesh = new THREE.Mesh(this.geo, this.mat);
         this.mesh.castShadow = true;
         this.mesh.receiveShadow = true;
