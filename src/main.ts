@@ -42,6 +42,45 @@ const dirLightTarget = new THREE.Object3D();
 scene.add(dirLightTarget);
 dirLight.target = dirLightTarget;
 
+function create3DNameTag(name: string): THREE.Sprite {
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d')!;
+
+  canvas.width = 256;  // Tighter texture bounds
+  canvas.height = 64;
+
+  // Fill the entire canvas area with a pill shape
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+  ctx.beginPath();
+  ctx.roundRect(0, 0, canvas.width, canvas.height, 16);
+  ctx.fill();
+
+  // Center the text perfectly
+  ctx.font = 'bold 24px sans-serif';
+  ctx.fillStyle = '#ffffff';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(name, canvas.width / 2, canvas.height / 2);
+
+  // Convert canvas to a Three.js texture
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.minFilter = THREE.LinearFilter; // Smooth filtering
+
+  const material = new THREE.SpriteMaterial({
+    map: texture,
+    transparent: true,
+    depthTest: true,
+    depthWrite: false
+  });
+
+  const sprite = new THREE.Sprite(material);
+
+  // Scale the sprite box proportions (Width, Height, Depth)
+  sprite.scale.set(2, 0.5, 1);
+  sprite.renderOrder = 2;
+  return sprite;
+}
+
 // --- 3. BORDER TEXTURE GENERATOR ---
 function createVoxelTexture(baseColorHex: number, forceNoBorder: boolean = false): THREE.Texture {
   const canvas = document.createElement('canvas');
@@ -136,8 +175,13 @@ function buildWorldFromData(data: number[][][]) {
 }
 
 // --- 5. LOCAL PLAYER & INPUTS ---
-const player = new Player("", 10, 4, 10, 0xff0000);
+const player = new Player("", "Me", 10, 4, 10, 0xff0000);
 scene.add(player.mesh);
+
+const localTag = create3DNameTag(player.name);
+localTag.position.set(0, player.height + 0.5, 0);
+player.mesh.add(localTag);
+
 
 const keys: { [key: string]: boolean } = {};
 window.addEventListener('keydown', (e) => keys[e.code] = true);
@@ -154,7 +198,15 @@ socket.on('initWorld', ({ mapData: serverMap, currentPlayers }) => {
   for (const id in currentPlayers) {
     if (id !== socket.id && !clientPlayers[id]) {
       const p = currentPlayers[id];
-      clientPlayers[id] = new Player(id, p.pos.x, p.pos.y, p.pos.z, 0x0000ff);
+      const pName = p.name || `Player_${id.slice(0, 4)}`;
+
+      clientPlayers[id] = new Player(id, pName, p.pos.x, p.pos.y, p.pos.z, 0x0000ff);
+
+      // Create and attach remote nametag
+      const remoteTag = create3DNameTag(pName);
+      remoteTag.position.set(0, clientPlayers[id].height + 0.5, 0);
+      clientPlayers[id].mesh.add(remoteTag);
+
       scene.add(clientPlayers[id].mesh);
     }
   }
@@ -163,7 +215,15 @@ socket.on('initWorld', ({ mapData: serverMap, currentPlayers }) => {
 // 2. Someone else joins later
 socket.on('playerJoined', (p) => {
   if (p.id !== socket.id && !clientPlayers[p.id]) {
-    clientPlayers[p.id] = new Player(p.id, p.pos.x, p.pos.y, p.pos.z, 0x0000ff);
+    const pName = p.name || `Player_${p.id.slice(0, 4)}`;
+
+    clientPlayers[p.id] = new Player(p.id, pName, p.pos.x, p.pos.y, p.pos.z, 0x0000ff);
+
+    // Create and attach remote nametag
+    const remoteTag = create3DNameTag(pName);
+    remoteTag.position.set(0, clientPlayers[p.id].height + 0.5, 0);
+    clientPlayers[p.id].mesh.add(remoteTag);
+
     scene.add(clientPlayers[p.id].mesh);
   }
 });
@@ -317,9 +377,20 @@ function updatePhysics(dt: number) {
       player.mesh.rotation.set(Math.PI / 2, 0, 0);
     }
     player.mesh.position.set(player.pos.x, player.pos.y + (player.height * 0.1), player.pos.z);
+
+    // --- ADD THIS LINE ---
+    // If the player is swimming (flipped), move the tag relative to the side 
+    // and rotate it back upright so it doesn't lay flat.
+    localTag.position.set(0, 0, player.height + 0.5);
+    localTag.rotation.set(-Math.PI / 2, 0, 0);
   } else {
     player.mesh.rotation.set(0, 0, 0);
     player.mesh.position.set(player.pos.x, player.pos.y + (player.height / 2), player.pos.z);
+
+    // --- ADD THIS LINE ---
+    // Reset to normal floating position above the upright cylinder
+    localTag.position.set(0, player.height + 0.5, 0);
+    localTag.rotation.set(0, 0, 0);
   }
 
   // Camera & Light tracking
@@ -337,6 +408,7 @@ function updatePhysics(dt: number) {
 
   // --- EMIT POSITION TO SERVER ---
   socket.emit('playerUpdate', {
+    name: player.name,
     pos: {
       x: player.pos.x,
       y: player.pos.y,

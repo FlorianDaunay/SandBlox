@@ -78,7 +78,7 @@ io.on('connection', (socket) => {
     socket.emit('initWorld', { mapData, currentPlayers: players });
 
     // 2. Register the new player locally
-    players[socket.id] = new Player(socket.id, 10, 4, 10, 0x000000);
+    players[socket.id] = new Player(socket.id, socket.id, 10, 4, 10, 0x000000);
 
     // 3. Inform other players that a new player joined
     socket.broadcast.emit('playerJoined', players[socket.id]);
@@ -93,6 +93,7 @@ io.on('connection', (socket) => {
             const z = typeof data.pos.z === 'number' ? data.pos.z : player.pos.z;
 
             player.pos.set(x, y, z);
+            player.name = data.name;
         }
     });
 

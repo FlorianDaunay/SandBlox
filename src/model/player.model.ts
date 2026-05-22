@@ -4,6 +4,7 @@ import { AIR, BLOCK_DEPTH, BLOCK_HEIGHT, BLOCK_WIDTH, MAP_SIZE, MAX_HEIGHT, WATE
 export class Player {
 
     public id: string;
+    public name: string;
     public pos: THREE.Vector3;
     public vel: THREE.Vector3;
     public radius: number;
@@ -15,8 +16,9 @@ export class Player {
     public mat: THREE.MeshStandardMaterial;
     public mesh: THREE.Mesh;
 
-    constructor(id: string, x: number, y: number, z: number, color: THREE.ColorRepresentation) {
+    constructor(id: string, name: string, x: number, y: number, z: number, color: THREE.ColorRepresentation) {
         this.id = id;
+        this.name = name;
         this.pos = new THREE.Vector3(x, y, z);
         this.vel = new THREE.Vector3(0, 0, 0);
         this.radius = 0.25;
