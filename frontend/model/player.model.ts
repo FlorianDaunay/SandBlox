@@ -99,7 +99,7 @@ export class Player {
         ctx.fill();
 
         // Center the text perfectly
-        ctx.font = 'bold 24px sans-serif';
+        ctx.font = 'bold 30px sans-serif';
         ctx.fillStyle = '#ffffff';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
