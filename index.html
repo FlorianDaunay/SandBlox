@@ -70,6 +70,85 @@
       border-color: #007bff;
     }
 
+    /* Custom Color Picker Styling */
+    .color-section {
+      background-color: #222;
+      border: 2px solid #444;
+      border-radius: 6px;
+      padding: 15px;
+      margin-bottom: 1.5rem;
+      text-align: left;
+    }
+
+    .color-section-title {
+      color: #aaa;
+      font-size: 0.9rem;
+      margin-bottom: 10px;
+      display: block;
+    }
+
+    .color-row {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+
+    /* Visual preview block */
+    #color-preview {
+      width: 45px;
+      height: 45px;
+      border-radius: 6px;
+      border: 1px solid #555;
+      background-color: #ff0000;
+      flex-shrink: 0;
+    }
+
+    /* Hexadecimal input text field */
+    #color-hex-input {
+      margin-bottom: 0;
+      /* Override the default input spacing */
+      font-family: monospace;
+      text-transform: uppercase;
+    }
+
+    /* Rainbow Spectrum Slider */
+    .rainbow-slider {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 12px;
+      border-radius: 6px;
+      outline: none;
+      /* Linear gradient representing standard 360-degree color wheel hue spectrum */
+      background: linear-gradient(to right,
+          #ff0000 0%, #ffff00 17%, #00ff00 33%,
+          #00ffff 50%, #0000ff 67%, #ff00ff 83%, #ff0000 100%);
+    }
+
+    /* Slider thumb styling */
+    .rainbow-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #fff;
+      border: 2px solid #000;
+      cursor: pointer;
+      box-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
+    }
+
+    .rainbow-slider::-moz-range-thumb {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #fff;
+      border: 2px solid #000;
+      cursor: pointer;
+      box-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
+    }
+
     button {
       width: 100%;
       padding: 12px;
@@ -102,6 +181,28 @@
     <div class="login-container">
       <h1>Voxel Sandbox</h1>
       <input type="text" id="player-name" placeholder="Enter your name..." autocomplete="off" max="15" />
+      <div id="name-error"
+        style="color: #ff4d4d; font-size: 0.85rem; text-align: left; margin-top: -10px; margin-bottom: 15px; display: none;">
+        Name cannot be empty
+      </div>
+
+      <!-- Custom Picker Wrapper -->
+      <div class="color-section">
+        <span class="color-section-title">Choose Voxel Color</span>
+
+        <div class="color-row">
+          <div id="color-preview"></div>
+          <input type="text" id="color-hex-input" value="0xFF0000" maxlength="8" autocomplete="off" />
+        </div>
+        <div id="hex-error"
+          style="color: #ff4d4d; font-size: 0.85rem; text-align: left; margin-top: -5px; display: none;">Invalid hex
+          format (use 0xRRGGBB)
+        </div>
+
+        <!-- Slider maps values from 0 to 360 (Degrees of Hue) -->
+        <input type="range" id="rainbow-slider" class="rainbow-slider" min="0" max="360" value="0" />
+      </div>
+
       <button id="start-btn" disabled>Start Game</button>
     </div>
   </div>

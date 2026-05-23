@@ -8,7 +8,7 @@ import { buildWorldFromData } from './service/map.service.js';
 
 export class Game {
 
-    public player: Player;
+    public player!: Player;
     public socket!: Socket;
     public mapData: number[][][] | null;
     public isInitialized: boolean;
@@ -25,7 +25,7 @@ export class Game {
 
 
     constructor(server_url: string) {
-        this.player = new Player("", "Me", 10, 4, 10, 0xff0000);
+
         this.serverUrl = server_url;
         this.mapData = null;
         this.isInitialized = false;
@@ -75,7 +75,7 @@ export class Game {
                     const p = otherPlayers[id];
                     const pName = p.name || `Player_${id.slice(0, 4)}`;
 
-                    this.clientPlayers[id] = new Player(id, pName, p.pos.x, p.pos.y, p.pos.z, 0x0000ff);
+                    this.clientPlayers[id] = new Player(id, pName, p.pos.x, p.pos.y, p.pos.z, p.color);
 
                     this.scene.add(this.clientPlayers[id].mesh!);
                 }
@@ -87,7 +87,7 @@ export class Game {
             if (p.id !== this.socket.id && !this.clientPlayers[p.id]) {
                 const pName = p.name || `Player_${p.id.slice(0, 4)}`;
 
-                this.clientPlayers[p.id] = new Player(p.id, pName, p.pos.x, p.pos.y, p.pos.z, 0x0000ff);
+                this.clientPlayers[p.id] = new Player(p.id, pName, p.pos.x, p.pos.y, p.pos.z, p.color);
 
                 this.scene.add(this.clientPlayers[p.id].mesh!);
             }
@@ -312,9 +312,11 @@ export class Game {
     }
 
     initGame() {
-        // 1. Fetch the user's customized name from sessionStorage
-        const savedName = sessionStorage.getItem("username") || "Me";
-        this.player.name = savedName;
+        const storedName = sessionStorage.getItem("username") || "Guest Player";
+        const storedColorRaw = sessionStorage.getItem("playerColor");
+        const finalColorNum = storedColorRaw ? parseInt(storedColorRaw, 10) : 0xff0000;
+        console.log(storedColorRaw, finalColorNum);
+        this.player = new Player("", storedName, 10, 4, 10, finalColorNum);
 
         // 2. Safely open the connection now that we have the real username
         this.socket = io(this.serverUrl, {

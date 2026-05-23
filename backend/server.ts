@@ -44,10 +44,6 @@ io.on('connection', (socket) => {
     // 2. Send the newly joined player the world data and current players
     socket.emit('initWorld', { mapData, otherPlayers: players, currentPlayer: players[socket.id] });
 
-    // change color for other to see it differently
-    players[socket.id].updateColor(0x5555cc);
-
-
     // 3. Inform other players that a new player joined
     socket.broadcast.emit('playerJoined', players[socket.id]);
 
