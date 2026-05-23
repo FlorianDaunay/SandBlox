@@ -6,6 +6,6 @@
         ]
     },
     "include": [
-        "server.ts"
+        "backend/server.ts"
     ]
 }

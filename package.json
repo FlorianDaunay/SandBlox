@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "start": "tsx --tsconfig tsconfig.server.json server.ts",
+    "start": "tsx --tsconfig tsconfig.server.json backend/server.ts",
     "render-build": "npm install && npm run build"
   },
   "devDependencies": {

@@ -4,6 +4,7 @@ import { Camera } from './model/camera.model.js';
 import { DirectionalLight } from './model/directional-light.model.js';
 import { Player } from './model/player.model.js';
 import { AIR, BLOCK_DEPTH, BLOCK_HEIGHT, BLOCK_WIDTH, BOOST, CLIMB_BOOST, COBBLESTONE, DIRT, displayBorder, GRASS, GRAVITY, JUMP_FORCE, MAP_SIZE, MAX_HEIGHT, PLAYER_SPEED, WATER } from './constant.js';
+import { buildWorldFromData } from './service/map.service.js';
 
 // --- 1. NETWORKING SETUP ---
 const SERVER_URL = import.meta.env.DEV
@@ -11,11 +12,17 @@ const SERVER_URL = import.meta.env.DEV
   : window.location.origin;
 
 
-const socket: Socket = io(SERVER_URL);
+let player = new Player("", "Me", 10, 4, 10, 0xff0000);
+
+
+const socket: Socket = io(SERVER_URL, {
+  auth: {
+    player: player
+  }
+});
 
 let mapData: number[][][] | null = null;
-// CHANGED: Store instances of the Player class instead of raw THREE.Mesh
-const remotePlayers: Record<string, Player> = {};
+
 let isInitialized = false;
 
 // --- 2. SETUP THREE.JS SCENE & ISOMETRIC CAMERA ---
@@ -42,145 +49,9 @@ const dirLightTarget = new THREE.Object3D();
 scene.add(dirLightTarget);
 dirLight.target = dirLightTarget;
 
-function create3DNameTag(name: string): THREE.Sprite {
-  const canvas = document.createElement('canvas');
-  const ctx = canvas.getContext('2d')!;
 
-  canvas.width = 256;  // Tighter texture bounds
-  canvas.height = 64;
 
-  // Fill the entire canvas area with a pill shape
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-  ctx.beginPath();
-  ctx.roundRect(0, 0, canvas.width, canvas.height, 16);
-  ctx.fill();
 
-  // Center the text perfectly
-  ctx.font = 'bold 24px sans-serif';
-  ctx.fillStyle = '#ffffff';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(name, canvas.width / 2, canvas.height / 2);
-
-  // Convert canvas to a Three.js texture
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.minFilter = THREE.LinearFilter; // Smooth filtering
-
-  const material = new THREE.SpriteMaterial({
-    map: texture,
-    transparent: true,
-    depthTest: true,
-    depthWrite: false
-  });
-
-  const sprite = new THREE.Sprite(material);
-
-  // Scale the sprite box proportions (Width, Height, Depth)
-  sprite.scale.set(2, 0.5, 1);
-  sprite.renderOrder = 2;
-  return sprite;
-}
-
-// --- 3. BORDER TEXTURE GENERATOR ---
-function createVoxelTexture(baseColorHex: number, forceNoBorder: boolean = false): THREE.Texture {
-  const canvas = document.createElement('canvas');
-  canvas.width = 16;
-  canvas.height = 16;
-  const ctx = canvas.getContext('2d')!;
-
-  ctx.fillStyle = `#${baseColorHex.toString(16).padStart(6, '0')}`;
-  ctx.fillRect(0, 0, 16, 16);
-
-  if (displayBorder && !forceNoBorder) {
-    ctx.strokeStyle = 'rgba(0, 0, 0, 0.25)';
-    ctx.lineWidth = 1;
-    ctx.strokeRect(0, 0, 16, 16);
-  }
-
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.magFilter = THREE.NearestFilter;
-  texture.minFilter = THREE.NearestFilter;
-  return texture;
-}
-
-// Geometries & Materials
-const geometry = new THREE.BoxGeometry(BLOCK_WIDTH, BLOCK_HEIGHT, BLOCK_DEPTH);
-const waterGeometry = new THREE.PlaneGeometry(BLOCK_WIDTH, BLOCK_DEPTH);
-waterGeometry.rotateX(-Math.PI / 2);
-waterGeometry.translate(0, BLOCK_HEIGHT / 2, 0);
-
-const dirtMaterial = new THREE.MeshStandardMaterial({ map: createVoxelTexture(0x95522c) });
-const grassMaterial = new THREE.MeshStandardMaterial({ map: createVoxelTexture(0x7cfc00) });
-const cobblestoneMaterial = new THREE.MeshStandardMaterial({ map: createVoxelTexture(0xbbbbbb) });
-const waterMaterial = new THREE.MeshStandardMaterial({
-  map: createVoxelTexture(0x1e90ff, true),
-  transparent: true,
-  opacity: 0.6,
-  roughness: 0.1,
-  metalness: 0.1,
-  depthWrite: false,
-  side: THREE.FrontSide
-});
-const boostMaterial = new THREE.MeshStandardMaterial({ map: createVoxelTexture(0xcc2222) });
-
-// --- 4. MAP RENDERING FUNCTION ---
-function buildWorldFromData(data: number[][][]) {
-  let totalDirt = 0, totalGrass = 0, totalCobble = 0, totalWater = 0, totalBoost = 0;
-
-  for (let x = 0; x < MAP_SIZE; x++) {
-    for (let y = 0; y < MAX_HEIGHT; y++) {
-      for (let z = 0; z < MAP_SIZE; z++) {
-        const id = data[x][y][z];
-        if (id === COBBLESTONE) totalCobble++;
-        else if (id === GRASS) totalGrass++;
-        else if (id === DIRT) totalDirt++;
-        else if (id === WATER) totalWater++;
-        else if (id === BOOST) totalBoost++;
-      }
-    }
-  }
-
-  const instancedDirtMesh = new THREE.InstancedMesh(geometry, dirtMaterial, totalDirt);
-  const instancedGrassMesh = new THREE.InstancedMesh(geometry, grassMaterial, totalGrass);
-  const instancedCobblestoneMesh = new THREE.InstancedMesh(geometry, cobblestoneMaterial, totalCobble);
-  const instancedWaterMesh = new THREE.InstancedMesh(waterGeometry, waterMaterial, totalWater);
-  const instancedBoostMesh = new THREE.InstancedMesh(geometry, boostMaterial, totalBoost);
-
-  const meshes = [instancedDirtMesh, instancedGrassMesh, instancedCobblestoneMesh, instancedBoostMesh];
-  meshes.forEach(m => { m.castShadow = true; m.receiveShadow = true; m.renderOrder = 0; });
-  instancedWaterMesh.castShadow = false; instancedWaterMesh.receiveShadow = false; instancedWaterMesh.renderOrder = 1;
-
-  let dIdx = 0, gIdx = 0, cIdx = 0, wIdx = 0, bIdx = 0;
-  const dummy = new THREE.Object3D();
-
-  for (let x = 0; x < MAP_SIZE; x++) {
-    for (let y = 0; y < MAX_HEIGHT; y++) {
-      for (let z = 0; z < MAP_SIZE; z++) {
-        const blockId = data[x][y][z];
-        if (blockId !== AIR) {
-          dummy.position.set((x + 0.5) * BLOCK_WIDTH, (y + 0.5) * BLOCK_HEIGHT, (z + 0.5) * BLOCK_DEPTH);
-          dummy.updateMatrix();
-
-          if (blockId === COBBLESTONE) instancedCobblestoneMesh.setMatrixAt(cIdx++, dummy.matrix);
-          else if (blockId === GRASS) instancedGrassMesh.setMatrixAt(gIdx++, dummy.matrix);
-          else if (blockId === DIRT) instancedDirtMesh.setMatrixAt(dIdx++, dummy.matrix);
-          else if (blockId === WATER) instancedWaterMesh.setMatrixAt(wIdx++, dummy.matrix);
-          else if (blockId === BOOST) instancedBoostMesh.setMatrixAt(bIdx++, dummy.matrix);
-        }
-      }
-    }
-  }
-
-  scene.add(instancedDirtMesh, instancedGrassMesh, instancedCobblestoneMesh, instancedWaterMesh, instancedBoostMesh);
-}
-
-// --- 5. LOCAL PLAYER & INPUTS ---
-const player = new Player("", "Me", 10, 4, 10, 0xff0000);
-scene.add(player.mesh);
-
-const localTag = create3DNameTag(player.name);
-localTag.position.set(0, player.height + 0.5, 0);
-player.mesh.add(localTag);
 
 
 const keys: { [key: string]: boolean } = {};
@@ -190,24 +61,25 @@ window.addEventListener('keyup', (e) => keys[e.code] = false);
 const clientPlayers: Record<string, Player> = {}; // Local player instances with meshes
 
 // 1. Handshake: Get all current players when joining
-socket.on('initWorld', ({ mapData: serverMap, currentPlayers }) => {
+socket.on('initWorld', ({ mapData: serverMap, otherPlayers, currentPlayer }) => {
   mapData = serverMap;
-  buildWorldFromData(mapData!);
+  buildWorldFromData(mapData!, scene);
   isInitialized = true;
 
-  for (const id in currentPlayers) {
+  player.id = currentPlayer.id;
+  player.name = currentPlayer.name || player.name;
+  player.pos.set(currentPlayer.pos.x, currentPlayer.pos.y, currentPlayer.pos.z);
+
+  scene.add(player.mesh!);
+
+  for (const id in otherPlayers) {
     if (id !== socket.id && !clientPlayers[id]) {
-      const p = currentPlayers[id];
+      const p = otherPlayers[id];
       const pName = p.name || `Player_${id.slice(0, 4)}`;
 
       clientPlayers[id] = new Player(id, pName, p.pos.x, p.pos.y, p.pos.z, 0x0000ff);
 
-      // Create and attach remote nametag
-      const remoteTag = create3DNameTag(pName);
-      remoteTag.position.set(0, clientPlayers[id].height + 0.5, 0);
-      clientPlayers[id].mesh.add(remoteTag);
-
-      scene.add(clientPlayers[id].mesh);
+      scene.add(clientPlayers[id].mesh!);
     }
   }
 });
@@ -219,12 +91,7 @@ socket.on('playerJoined', (p) => {
 
     clientPlayers[p.id] = new Player(p.id, pName, p.pos.x, p.pos.y, p.pos.z, 0x0000ff);
 
-    // Create and attach remote nametag
-    const remoteTag = create3DNameTag(pName);
-    remoteTag.position.set(0, clientPlayers[p.id].height + 0.5, 0);
-    clientPlayers[p.id].mesh.add(remoteTag);
-
-    scene.add(clientPlayers[p.id].mesh);
+    scene.add(clientPlayers[p.id].mesh!);
   }
 });
 
@@ -235,10 +102,31 @@ socket.on('stateUpdate', (serverPlayers) => {
       const serverPlayerData = serverPlayers[id];
       const localPlayer = clientPlayers[id];
 
-      if (localPlayer && serverPlayerData && serverPlayerData.pos) {
-        // Read the raw JSON properties safely and update the Three.js mesh position
-        localPlayer.pos.set(serverPlayerData.pos.x, serverPlayerData.pos.y + localPlayer.height / 2, serverPlayerData.pos.z);
-        localPlayer.mesh.position.copy(localPlayer.pos);
+      if (localPlayer) {
+        // 💡 FIX: Copy values over, or re-instantiate the vector so methods exist!
+        localPlayer.pos.set(
+          serverPlayerData.pos.x,
+          serverPlayerData.pos.y,
+          serverPlayerData.pos.z
+        );
+
+        // Sync up visual mesh location if it exists
+        localPlayer.mesh?.position.copy(localPlayer.pos);
+      } else {
+        // If it's a completely new player your client hasn't spawned yet
+        // Use your class constructor to build them cleanly
+        clientPlayers[id] = new Player(
+          id,
+          serverPlayerData.name,
+          serverPlayerData.pos.x,
+          serverPlayerData.pos.y,
+          serverPlayerData.pos.z,
+          serverPlayerData.color || 0x5555cc
+        );
+
+        if (clientPlayers[id].mesh) {
+          scene.add(clientPlayers[id].mesh!);
+        }
       }
     }
   }
@@ -247,7 +135,7 @@ socket.on('stateUpdate', (serverPlayers) => {
 // 4. Clean up when someone leaves
 socket.on('playerLeft', (id) => {
   if (clientPlayers[id]) {
-    scene.remove(clientPlayers[id].mesh); // Delete their capsule from the game world
+    scene.remove(clientPlayers[id].mesh!); // Delete their capsule from the game world
     delete clientPlayers[id];
   }
 });
@@ -317,7 +205,7 @@ function updatePhysics(dt: number) {
     }
   }
 
-  const nextPos = player.pos.clone();
+  const nextPos = player.pos!.clone();
 
   // X movement
   nextPos.x += player.vel.x * dt;
@@ -325,7 +213,7 @@ function updatePhysics(dt: number) {
     player.pos.x = nextPos.x;
   } else {
     if (isSwimming && inputDir.x !== 0) {
-      const checkClimbPos = player.pos.clone();
+      const checkClimbPos = player.pos!.clone();
       checkClimbPos.y += BLOCK_HEIGHT;
       checkClimbPos.x += Math.sign(player.vel.x) * 0.2;
       if (!player.checkVoxelBoxCollision(checkClimbPos, mapData)) player.vel.y = CLIMB_BOOST;
@@ -340,7 +228,7 @@ function updatePhysics(dt: number) {
     player.pos.z = nextPos.z;
   } else {
     if (isSwimming && inputDir.z !== 0) {
-      const checkClimbPos = player.pos.clone();
+      const checkClimbPos = player.pos!.clone();
       checkClimbPos.y += BLOCK_HEIGHT;
       checkClimbPos.z += Math.sign(player.vel.z) * 0.2;
       if (!player.checkVoxelBoxCollision(checkClimbPos, mapData)) player.vel.y = CLIMB_BOOST;
@@ -371,26 +259,26 @@ function updatePhysics(dt: number) {
   if (isSwimming) {
     if (inputDir.lengthSq() > 0) {
       const angle = Math.atan2(inputDir.x, inputDir.z);
-      player.mesh.rotation.set(0, angle, 0);
-      player.mesh.rotateX(Math.PI / 2);
+      player.mesh!.rotation.set(0, angle, 0);
+      player.mesh!.rotateX(Math.PI / 2);
     } else {
-      player.mesh.rotation.set(Math.PI / 2, 0, 0);
+      player.mesh!.rotation.set(Math.PI / 2, 0, 0);
     }
-    player.mesh.position.set(player.pos.x, player.pos.y + (player.height * 0.1), player.pos.z);
+    player.mesh!.position.set(player.pos.x, player.pos.y + (player.height * 0.1), player.pos.z);
 
     // --- ADD THIS LINE ---
     // If the player is swimming (flipped), move the tag relative to the side 
     // and rotate it back upright so it doesn't lay flat.
-    localTag.position.set(0, 0, player.height + 0.5);
-    localTag.rotation.set(-Math.PI / 2, 0, 0);
+    player.tag!.position.set(0, 0, player.height + 0.5);
+    player.tag!.rotation.set(-Math.PI / 2, 0, 0);
   } else {
-    player.mesh.rotation.set(0, 0, 0);
-    player.mesh.position.set(player.pos.x, player.pos.y + (player.height / 2), player.pos.z);
+    player.mesh!.rotation.set(0, 0, 0);
+    player.mesh!.position.set(player.pos.x, player.pos.y + (player.height / 2), player.pos.z);
 
     // --- ADD THIS LINE ---
     // Reset to normal floating position above the upright cylinder
-    localTag.position.set(0, player.height + 0.5, 0);
-    localTag.rotation.set(0, 0, 0);
+    player.tag!.position.set(0, player.height + 0.5, 0);
+    player.tag!.rotation.set(0, 0, 0);
   }
 
   // Camera & Light tracking
@@ -411,7 +299,7 @@ function updatePhysics(dt: number) {
     name: player.name,
     pos: {
       x: player.pos.x,
-      y: player.pos.y,
+      y: player.pos.y + player.height / 2,
       z: player.pos.z
     }
   });

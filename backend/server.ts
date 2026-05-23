@@ -5,14 +5,15 @@ import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-import { Player } from './src/model/player.model.js';
-import { MAP_SIZE, MAX_HEIGHT, SEA_LEVEL, AIR, COBBLESTONE, DIRT, GRASS, BOOST, WATER } from './src/constant.js';
+import { Player } from '../frontend/model/player.model.js';
+import { MAP_SIZE, MAX_HEIGHT, SEA_LEVEL, AIR, COBBLESTONE, DIRT, GRASS, BOOST, WATER } from '../frontend/constant.js';
+import { MapGrid } from './map-generation.js';
 
 const app = express();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-app.use(express.static(path.join(__dirname, 'dist')));
+app.use(express.static(path.join(__dirname, '../dist')));
 const httpServer = createServer(app);
 
 const PORT = process.env.PORT || 3000;
@@ -26,59 +27,26 @@ const io = new Server(httpServer, {
 });
 
 const players: Record<string, Player> = {};
-let mapData: number[][][] | null = null;
+let mapGrid: MapGrid = new MapGrid();
+let mapData = mapGrid.grid;
 
-function getRandomBetween(min: number, max: number): number {
-    return Math.floor(Math.random() * (max - min) + min);
-}
-
-// Generate the map ONCE on the server
-function generateServerMap() {
-    mapData = Array.from({ length: MAP_SIZE }, () =>
-        Array.from({ length: MAX_HEIGHT }, () =>
-            Array.from({ length: MAP_SIZE }, () => AIR)
-        )
-    );
-
-    for (let x = 0; x < MAP_SIZE; x++) {
-        for (let z = 0; z < MAP_SIZE; z++) {
-            const waveValue = Math.cos(x * 0.3) * Math.sin(z * 0.3);
-            const normalizedHeight = (waveValue + 1) / 2;
-            let height = Math.floor(normalizedHeight * (MAX_HEIGHT - 2)) + 2;
-            height = height > 0 ? height : 1;
-
-            for (let y = 0; y < height; y++) {
-                if (y <= 1) {
-                    mapData[x][y][z] = COBBLESTONE;
-                } else if (y === height - 1) {
-                    if (getRandomBetween(1, 5) === 1) {
-                        mapData[x][y][z] = BOOST;
-                    } else {
-                        mapData[x][y][z] = GRASS;
-                    }
-                } else {
-                    mapData[x][y][z] = DIRT;
-                }
-            }
-
-            for (let y = height; y <= SEA_LEVEL; y++) {
-                mapData[x][y][z] = WATER;
-            }
-        }
-    }
-}
-
-generateServerMap();
-
-// Socket.io Game Loop (Broadcasting state at 30Hz/60Hz)
 io.on('connection', (socket) => {
     console.log(`User connected: ${socket.id}`);
 
-    // 1. Send the newly joined player the world data and current players
-    socket.emit('initWorld', { mapData, currentPlayers: players });
+    // 1. Register the new player locally
+    const playerData = socket.handshake.auth.player;
+    const name = playerData?.name || 'Guest';
+    const { x = 0, y = 10, z = 0 } = playerData?.pos || {};
+    const color = playerData.color;
+    players[socket.id] = new Player(socket.id, name, x, y, z, color);
+    players[socket.id].id = socket.id;
 
-    // 2. Register the new player locally
-    players[socket.id] = new Player(socket.id, socket.id, 10, 4, 10, 0x000000);
+    // 2. Send the newly joined player the world data and current players
+    socket.emit('initWorld', { mapData, otherPlayers: players, currentPlayer: players[socket.id] });
+
+    // change color for other to see it differently
+    players[socket.id].updateColor(0x5555cc);
+
 
     // 3. Inform other players that a new player joined
     socket.broadcast.emit('playerJoined', players[socket.id]);
