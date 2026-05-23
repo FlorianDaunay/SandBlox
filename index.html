@@ -179,8 +179,8 @@
   <!-- Login Overlay -->
   <div id="welcome-screen">
     <div class="login-container">
-      <h1>Voxel Sandbox</h1>
-      <input type="text" id="player-name" placeholder="Enter your name..." autocomplete="off" max="15" />
+      <h1>Sandbox</h1>
+      <input type="text" id="player-name" placeholder="Enter your name..." autocomplete="off" maxlength="12" />
       <div id="name-error"
         style="color: #ff4d4d; font-size: 0.85rem; text-align: left; margin-top: -10px; margin-bottom: 15px; display: none;">
         Name cannot be empty
@@ -188,15 +188,15 @@
 
       <!-- Custom Picker Wrapper -->
       <div class="color-section">
-        <span class="color-section-title">Choose Voxel Color</span>
+        <span class="color-section-title">Choose your Color</span>
 
         <div class="color-row">
           <div id="color-preview"></div>
           <input type="text" id="color-hex-input" value="0xFF0000" maxlength="8" autocomplete="off" />
         </div>
         <div id="hex-error"
-          style="color: #ff4d4d; font-size: 0.85rem; text-align: left; margin-top: -5px; display: none;">Invalid hex
-          format (use 0xRRGGBB)
+          style="color: #ff4d4d; font-size: 0.85rem; text-align: left; margin-top: -5px; display: none;">
+          Invalid hex format (use 0xRRGGBB)
         </div>
 
         <!-- Slider maps values from 0 to 360 (Degrees of Hue) -->
