@@ -1,13 +1,11 @@
 import { Game } from './game.js';
 
-// --- 1. NETWORKING SETUP ---
 const SERVER_URL = import.meta.env.DEV
   ? "http://localhost:3000"
   : window.location.origin;
 
 const game = new Game(SERVER_URL);
 
-// --- 2. COLOR PICKER UTILITY FUNCTIONS ---
 function hueToHexStr(h: number): string {
   const f = (n: number, k = (n + h / 60) % 6) => 1 - Math.max(Math.min(k, 4 - k, 1), 0);
   const r = Math.round(255 * f(5));
@@ -39,42 +37,45 @@ function hexStrToHue(hex: string): number {
   return Math.round(h * 60);
 }
 
-// Validate if input matches exactly 0x followed by 6 hex characters
 function isValidHex(hex: string): boolean {
   return /^0X[0-9A-F]{6}$/.test(hex.toUpperCase());
 }
 
-// Setup the Welcome UI Logic
 document.addEventListener("DOMContentLoaded", () => {
   const welcomeScreen = document.getElementById("welcome-screen") as HTMLDivElement;
   const nameInput = document.getElementById("player-name") as HTMLInputElement;
   const startButton = document.getElementById("start-btn") as HTMLButtonElement;
 
-  // Custom UI elements
   const rainbowSlider = document.getElementById('rainbow-slider') as HTMLInputElement;
   const hexInput = document.getElementById('color-hex-input') as HTMLInputElement;
   const colorPreview = document.getElementById('color-preview') as HTMLDivElement;
 
-  // Error messaging nodes
   const nameError = document.getElementById('name-error') as HTMLDivElement;
   const hexError = document.getElementById('hex-error') as HTMLDivElement;
 
-  // Global form validator rule
+  // Track active weapon key
+  let chosenWeapon = 'sword';
+
+  // Weapon buttons selection switching logic
+  const weaponButtons = document.querySelectorAll('.weapon-btn');
+  weaponButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      weaponButtons.forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+      chosenWeapon = (btn as HTMLButtonElement).dataset.weapon || 'sword';
+    });
+  });
+
   const validateForm = () => {
     const isNameValid = nameInput.value.trim().length > 0;
     const isHexValid = isValidHex(hexInput.value);
 
-    // Toggle error messages dynamically
     nameError.style.display = isNameValid || nameInput.value === "" ? "none" : "block";
     hexError.style.display = isHexValid || hexInput.value === "" ? "none" : "block";
 
-    // Disable button if either check fails
     startButton.disabled = !isNameValid || !isHexValid;
   };
 
-  // --- COLOR PICKER INTERACTION ---
-
-  // 1. Sliding updates input and color block
   rainbowSlider.addEventListener('input', () => {
     const hexStr = hueToHexStr(parseInt(rainbowSlider.value));
     colorPreview.style.backgroundColor = hexStr.replace('0x', '#');
@@ -82,40 +83,39 @@ document.addEventListener("DOMContentLoaded", () => {
     validateForm();
   });
 
-  // 2. Typing directly handles bidirectional updates smoothly
   hexInput.addEventListener('input', () => {
     let val = hexInput.value.toUpperCase();
-
-    // Automatically force prefix corrections while typing
     if (!val.startsWith('0X')) {
       val = '0X' + val.replace(/[^0-9A-F]/g, '');
     }
-
     hexInput.value = val;
 
-    // Bidirectional update triggers immediately whenever layout reads clean data
     if (isValidHex(val)) {
       const calculatedHue = hexStrToHue(val);
       rainbowSlider.value = calculatedHue.toString();
       colorPreview.style.backgroundColor = val.replace('0X', '#');
     }
-
     validateForm();
   });
 
-  // --- REGULAR FIELD VALIDATIONS ---
   nameInput.addEventListener("input", validateForm);
 
-  // --- GAME LAUNCH ACTION ---
   const startGame = () => {
     const finalName = nameInput.value.trim();
     if (!finalName || !isValidHex(hexInput.value)) return;
 
     const finalColorNum = parseInt(hexInput.value, 16);
 
-    // Save states
+    // Resolve 'random' options instantly during setup
+    let weaponPool = ['sword', 'lance', 'bow', 'firestaff'];
+    if (chosenWeapon === 'random') {
+      chosenWeapon = weaponPool[Math.floor(Math.random() * weaponPool.length)];
+    }
+
+    // Save states globally for lookup in Game class setup routines
     sessionStorage.setItem("username", finalName);
     sessionStorage.setItem("playerColor", finalColorNum.toString());
+    sessionStorage.setItem("selectedWeapon", chosenWeapon);
 
     welcomeScreen.style.opacity = "0";
     setTimeout(() => {
@@ -132,7 +132,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // Initialize current valid state defaults
   validateForm();
   colorPreview.style.backgroundColor = hexInput.value.replace('0X', '#').replace('0x', '#');
 });

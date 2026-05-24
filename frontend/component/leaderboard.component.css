@@ -1,0 +1,193 @@
+#game-leaderboard {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    background: rgba(30, 41, 47, 0.93);
+    color: #ffffff;
+    padding: 14px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    border-radius: 10px;
+    width: 320px;
+    height: auto;
+    z-index: 100;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(0, 0, 0, 0.5);
+    transition: all 0.2s ease-out;
+    overflow: hidden;
+    box-sizing: border-box;
+}
+
+/* Perfect Square Folded State */
+#game-leaderboard.folded {
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Header layout when open */
+.lb-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+    padding-bottom: 8px;
+    margin-bottom: 10px;
+    user-select: none;
+}
+
+/* Center configuration when folded */
+#game-leaderboard.folded .lb-header {
+    border-bottom: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+}
+
+.lb-title {
+    font-size: 15px;
+    font-weight: 800;
+    color: #ffd23f;
+    letter-spacing: 1.5px;
+}
+
+/* Fixed: Explicit sizing stops the button from stretching */
+.lb-toggle-btn {
+    background: transparent;
+    border: none;
+    color: #a0aec0;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 14px;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: background 0.2s, color 0.2s;
+    flex-shrink: 0;
+    /* Prevents flex compression layouts */
+}
+
+.lb-toggle-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #ffffff;
+}
+
+/* Hide open elements entirely on fold */
+#game-leaderboard.folded .lb-title,
+#game-leaderboard.folded .lb-toggle-btn,
+#game-leaderboard.folded #lb-rows {
+    display: none;
+}
+
+/* Vector Podium Icon */
+.lb-podium-icon {
+    width: 22px;
+    height: 22px;
+    fill: #ffd23f;
+    display: none;
+}
+
+/* Show icon only when folded */
+#game-leaderboard.folded .lb-podium-icon {
+    display: block;
+}
+
+/* Row & Stat Layout Rules */
+.lb-row {
+    display: grid;
+    grid-template-columns: 36px 1fr 65px 35px 35px;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 4px;
+    border-radius: 6px;
+    margin-bottom: 4px;
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.lb-row:nth-child(even) {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.lb-rank {
+    font-size: 11px;
+    font-weight: 700;
+    text-align: center;
+    padding: 2px 4px;
+    border-radius: 4px;
+    color: #1a202c;
+}
+
+.lb-row:nth-child(1) .lb-rank {
+    background: #ffd700;
+}
+
+.lb-row:nth-child(2) .lb-rank {
+    background: #e2e8f0;
+}
+
+.lb-row:nth-child(3) .lb-rank {
+    background: #ed8936;
+}
+
+/* Dynamic fallback for positions below 3rd place */
+.lb-row .lb-rank:not(:nth-child(1)):not(:nth-child(2)):not(:nth-child(3)) {
+    color: #a0aec0;
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.lb-name {
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding-right: 4px;
+    color: #e2e8f0;
+}
+
+.lb-pts {
+    font-size: 12px;
+    font-weight: 700;
+    text-align: center;
+    padding: 3px 6px;
+    border-radius: 5px;
+    background: rgba(72, 187, 120, 0.2);
+    color: #48bb78;
+    border: 1px solid rgba(72, 187, 120, 0.3);
+}
+
+.lb-pts.negative {
+    background: rgba(245, 101, 101, 0.15);
+    color: #f56565;
+    border: 1px solid rgba(245, 101, 101, 0.3);
+}
+
+.lb-stat-box {
+    text-align: center;
+    line-height: 1.1;
+}
+
+.lb-stat-val {
+    font-size: 13px;
+    font-weight: 700;
+    color: #edf2f7;
+}
+
+.lb-stat-lbl {
+    font-size: 8px;
+    text-transform: uppercase;
+    color: #718096;
+    font-weight: 600;
+}

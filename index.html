@@ -71,7 +71,8 @@
     }
 
     /* Custom Color Picker Styling */
-    .color-section {
+    .color-section,
+    .weapon-section {
       background-color: #222;
       border: 2px solid #444;
       border-radius: 6px;
@@ -80,7 +81,7 @@
       text-align: left;
     }
 
-    .color-section-title {
+    .section-title {
       color: #aaa;
       font-size: 0.9rem;
       margin-bottom: 10px;
@@ -94,7 +95,6 @@
       margin-bottom: 15px;
     }
 
-    /* Visual preview block */
     #color-preview {
       width: 45px;
       height: 45px;
@@ -104,15 +104,12 @@
       flex-shrink: 0;
     }
 
-    /* Hexadecimal input text field */
     #color-hex-input {
       margin-bottom: 0;
-      /* Override the default input spacing */
       font-family: monospace;
       text-transform: uppercase;
     }
 
-    /* Rainbow Spectrum Slider */
     .rainbow-slider {
       -webkit-appearance: none;
       appearance: none;
@@ -120,13 +117,11 @@
       height: 12px;
       border-radius: 6px;
       outline: none;
-      /* Linear gradient representing standard 360-degree color wheel hue spectrum */
       background: linear-gradient(to right,
           #ff0000 0%, #ffff00 17%, #00ff00 33%,
           #00ffff 50%, #0000ff 67%, #ff00ff 83%, #ff0000 100%);
     }
 
-    /* Slider thumb styling */
     .rainbow-slider::-webkit-slider-thumb {
       -webkit-appearance: none;
       appearance: none;
@@ -149,7 +144,43 @@
       box-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
     }
 
-    button {
+    /* Weapon Selector Square Buttons Styling */
+    .weapon-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 8px;
+      margin-top: 5px;
+    }
+
+    .weapon-btn {
+      aspect-ratio: 1 / 1;
+      width: 100%;
+      padding: 0;
+      background-color: #333;
+      border: 2px solid #555;
+      border-radius: 6px;
+      color: #fff;
+      font-size: 1.3rem;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .weapon-btn:hover {
+      background-color: #444;
+      border-color: #888;
+    }
+
+    .weapon-btn.selected {
+      background-color: #007bff;
+      border-color: #fff;
+      box-shadow: 0 0 8px rgba(0, 123, 255, 0.6);
+      transform: scale(1.05);
+    }
+
+    #start-btn {
       width: 100%;
       padding: 12px;
       background-color: #007bff;
@@ -162,11 +193,11 @@
       transition: background-color 0.3s, opacity 0.3s;
     }
 
-    button:hover:not(:disabled) {
+    #start-btn:hover:not(:disabled) {
       background-color: #0056b3;
     }
 
-    button:disabled {
+    #start-btn:disabled {
       background-color: #444;
       color: #888;
       cursor: not-allowed;
@@ -176,7 +207,6 @@
 </head>
 
 <body>
-  <!-- Login Overlay -->
   <div id="welcome-screen">
     <div class="login-container">
       <h1>Sandbox</h1>
@@ -186,10 +216,8 @@
         Name cannot be empty
       </div>
 
-      <!-- Custom Picker Wrapper -->
       <div class="color-section">
-        <span class="color-section-title">Choose your Color</span>
-
+        <span class="section-title">Choose your Color</span>
         <div class="color-row">
           <div id="color-preview"></div>
           <input type="text" id="color-hex-input" value="0xFF0000" maxlength="8" autocomplete="off" />
@@ -198,9 +226,18 @@
           style="color: #ff4d4d; font-size: 0.85rem; text-align: left; margin-top: -5px; display: none;">
           Invalid hex format (use 0xRRGGBB)
         </div>
-
-        <!-- Slider maps values from 0 to 360 (Degrees of Hue) -->
         <input type="range" id="rainbow-slider" class="rainbow-slider" min="0" max="360" value="0" />
+      </div>
+
+      <div class="weapon-section">
+        <span class="section-title">Select Starting Weapon</span>
+        <div class="weapon-grid">
+          <button type="button" class="weapon-btn selected" data-weapon="sword" title="Sword">⚔️</button>
+          <button type="button" class="weapon-btn" data-weapon="lance" title="Lance">🔱</button>
+          <button type="button" class="weapon-btn" data-weapon="bow" title="Bow">🏹</button>
+          <button type="button" class="weapon-btn" data-weapon="firestaff" title="Fire Staff">🔥</button>
+          <button type="button" class="weapon-btn" data-weapon="random" title="Random Weapon">?</button>
+        </div>
       </div>
 
       <button id="start-btn" disabled>Start Game</button>

@@ -18,10 +18,9 @@ const httpServer = createServer(app);
 
 const PORT = process.env.PORT || 3000;
 
-// Configure CORS so your frontend can connect to Render
 const io = new Server(httpServer, {
     cors: {
-        origin: "*", // Adjust this to your specific frontend URL in production
+        origin: "*",
         methods: ["GET", "POST"]
     }
 });
@@ -30,57 +29,158 @@ const players: Record<string, Player> = {};
 let mapGrid: MapGrid = new MapGrid();
 let mapData = mapGrid.grid;
 
+const getLeaderboardData = () => {
+    const list = Object.keys(players).map(id => {
+        const p = players[id] as any;
+        const kills = p.kills || 0;
+        const deaths = p.deaths || 0;
+        const points = (kills * 2) - deaths;
+        return { name: p.name, kills, deaths, points };
+    });
+
+    list.sort((a, b) => b.points - a.points);
+
+    let currentRank = 1;
+    return list.map((item, index) => {
+        if (index > 0 && item.points < list[index - 1].points) {
+            currentRank = index + 1;
+        }
+
+        let suffix = "th";
+        if (currentRank === 1) suffix = "st";
+        else if (currentRank === 2) suffix = "nd";
+        else if (currentRank === 3) suffix = "rd";
+
+        return {
+            rankString: `${currentRank}${suffix}`,
+            name: item.name,
+            points: item.points,
+            kills: item.kills,
+            deaths: item.deaths
+        };
+    }).slice(0, 3);
+};
+
+const broadcastLeaderboard = () => {
+    io.emit('updateLeaderboard', getLeaderboardData());
+};
+
 io.on('connection', (socket) => {
     console.log(`User connected: ${socket.id}`);
 
-    // 1. Register the new player locally
     const playerData = socket.handshake.auth.player;
     const name = playerData?.name || 'Guest';
     const { x = 0, y = 10, z = 0 } = playerData?.pos || {};
     const color = playerData.color;
+
     players[socket.id] = new Player(socket.id, name, x, y, z, color);
     players[socket.id].id = socket.id;
 
-    // 2. Send the newly joined player the world data and current players
+    (players[socket.id] as any).kills = 0;
+    (players[socket.id] as any).deaths = 0;
+
     socket.emit('initWorld', { mapData, otherPlayers: players, currentPlayer: players[socket.id] });
-
-    // 3. Inform other players that a new player joined
     socket.broadcast.emit('playerJoined', players[socket.id]);
+    broadcastLeaderboard();
 
-    // 4. Listen for structural movement updates from this specific client
     socket.on('playerUpdate', (data: any) => {
         const player = players[socket.id];
         if (player && data && data.pos) {
-            // Read properties safely even if it's a plain primitive object JSON structure
             const x = typeof data.pos.x === 'number' ? data.pos.x : player.pos.x;
             const y = typeof data.pos.y === 'number' ? data.pos.y : player.pos.y;
             const z = typeof data.pos.z === 'number' ? data.pos.z : player.pos.z;
 
             player.pos.set(x, y, z);
             player.name = data.name;
+            player.lifePoints = data.lifePoints;
+
+            // Sync current active weapon metadata for remote player appearance updates
+            if (data.equippedWeapon) {
+                (player as any).equippedWeapon = {
+                    name: data.equippedWeapon.name,
+                    type: data.equippedWeapon.type
+                };
+            }
         }
     });
 
-    // 5. Handle disconnection
+    socket.on('attackPlayer', (data: { targetId: string; damage: number }) => {
+        const attacker = players[socket.id] as any;
+        const target = players[data.targetId] as any;
+
+        if (!attacker || !target) return;
+
+        target.damage(data.damage);
+        console.log(`Player ${attacker.name} hit ${target.name} for ${data.damage} damage. Target HP: ${target.lifePoints}`);
+
+        io.emit('playerDamaged', {
+            targetId: data.targetId,
+            currentLifePoints: target.lifePoints
+        });
+
+        if (target.lifePoints <= 0) {
+            console.log(`Player ${target.name} has died! Respawning...`);
+
+            attacker.kills = (attacker.kills || 0) + 1;
+            target.deaths = (target.deaths || 0) + 1;
+
+            target.setLifePoints(target.maxLifePoints);
+
+            const respawnX = 10;
+            const respawnY = 15;
+            const respawnZ = 10;
+
+            target.pos.set(respawnX, respawnY, respawnZ);
+
+            io.to(data.targetId).emit('playerRespawn', {
+                x: respawnX,
+                y: respawnY,
+                z: respawnZ,
+                lifePoints: target.maxLifePoints
+            });
+
+            io.emit('stateUpdate', players);
+            broadcastLeaderboard();
+        }
+    });
+
+    socket.on('triggerAttackAnimation', (data: { motionPattern: string }) => {
+        socket.broadcast.emit('playerAttacked', {
+            attackerId: socket.id,
+            motionPattern: data?.motionPattern || 'slash'
+        });
+    });
+
+    socket.on('spawnProjectile', (data: {
+        projectileType: string;
+        origin: { x: number; y: number; z: number };
+        direction: { x: number; y: number; z: number };
+        useGravity: boolean;
+        speed: number;
+    }) => {
+        // Distribute projectile properties globally so clients can execute their local rendering calculations
+        socket.broadcast.emit('projectileSpawned', {
+            id: `${socket.id}-${Date.now()}`,
+            ownerId: socket.id,
+            ...data
+        });
+    });
+
     socket.on('disconnect', () => {
         console.log(`User disconnected: ${socket.id}`);
         delete players[socket.id];
         io.emit('playerLeft', socket.id);
+        broadcastLeaderboard();
     });
 });
 
-// Broadcast state updates to all clients every 33ms (~30 updates per second)
 setInterval(() => {
     io.emit('stateUpdate', players);
 }, 33);
 
-
 httpServer.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
 });
-
-
-
 
 process.on('uncaughtException', (err) => {
     console.error('CRITICAL SERVER ERROR WORKED:', err.stack);
